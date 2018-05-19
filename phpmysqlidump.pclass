@@ -3,6 +3,7 @@
  * @author awan < nawa (at) yahoo (dot) com >
  * @modify josejavierfm
  * 2018
+ * v1.0.3 otro parametro para poner comillas aunque el campo sea numerico
  * v1.0.2 permite excluir tablas del volcado pasando el nombre en un array, ademas comprueba los flag de los campos para ver si poner null o '' en los campos vacios
  * v1.0.1 parametro que permite excluir la tabla log
  */
@@ -99,7 +100,7 @@ function mysqli_import_sql( $args , $dbhost, $dbuser, $dbpass ,$dbname ) {
  * @param string $dbname database name
  *
  */
-function backup_database( $directory, $outname , $dbhost, $dbuser, $dbpass ,$dbname,$arrayexclude ) {
+function backup_database( $directory, $outname , $dbhost, $dbuser, $dbpass ,$dbname,$arrayexclude=null,$comillanumero=false ) {
   $notin="";
   if ($arrayexclude!=null){
     $primero=true;
@@ -244,7 +245,11 @@ function backup_database( $directory, $outname , $dbhost, $dbuser, $dbpass ,$dbn
                           }
                       }else{
                           if (is_numeric( $row[$j] )){
-                              $return .=$row[$j];
+                              if ($comillanumero){
+                                $return .='\''.$row[$j].'\'';
+                              }else{
+                                $return .=$row[$j];
+                              }
                           }else{
                               $return .='\''.$row[$j].'\'';
                           }
