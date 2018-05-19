@@ -3,8 +3,8 @@
  * @author awan < nawa (at) yahoo (dot) com >
  * @modify josejavierfm
  * 2018
+ * v1.0.2 permite excluir tablas del volcado pasando el nombre en un array, ademas comprueba los flag de los campos para ver si poner null o '' en los campos vacios
  * v1.0.1 parametro que permite excluir la tabla log
- * 
  */
  
  
@@ -99,8 +99,22 @@ function mysqli_import_sql( $args , $dbhost, $dbuser, $dbpass ,$dbname ) {
  * @param string $dbname database name
  *
  */
-function backup_database( $directory, $outname , $dbhost, $dbuser, $dbpass ,$dbname,$conlog=false ) {
+function backup_database( $directory, $outname , $dbhost, $dbuser, $dbpass ,$dbname,$arrayexclude ) {
+  $notin="";
+  if ($arrayexclude!=null){
+    $primero=true;
+    foreach($arrayexclude as $texclude){
+      
+      if ($primero){
+        $primero=false;
+      }else{
+        $notin.=",";
+      }
+      $notin.="'".$texclude."'";
+    }
+  }
   
+
   // check mysqli extension installed
   if( ! function_exists('mysqli_connect') ) {
     die(' This scripts need mysql extension to be running properly ! please resolve!!');
@@ -141,11 +155,13 @@ function backup_database( $directory, $outname , $dbhost, $dbuser, $dbpass ,$dbn
     $fullname = $dir.'/'.$name.'.sql.gz'; # full structures
 
     if( ! $mysqli->error ) {
-      if ($conlog){
+      if ($arrayexclude=null){
 
         $sql = "SHOW TABLES";
       }else{
-        $sql = "SHOW TABLES where tables_in_$dbname not like 'log'";
+        //quitamos las tablas
+
+        $sql = "SHOW TABLES where tables_in_$dbname not in ($notin)";
       }
       $show = $mysqli->query($sql);
       while ( $r = $show->fetch_array() ) {
@@ -158,76 +174,108 @@ function backup_database( $directory, $outname , $dbhost, $dbuser, $dbpass ,$dbn
   $return = '';
   foreach( $tables as $table )
   {
-    $result     = $mysqli->query('SELECT * FROM '.$table);
-    $num_fields = $result->field_count;
-    $row2       = $mysqli->query('SHOW CREATE TABLE '.$table );
+        $result     = $mysqli->query('SELECT * FROM '.$table);
+        $num_fields = $result->field_count;
+        $row2       = $mysqli->query('SHOW CREATE TABLE '.$table );
 
-    $row2       = $row2->fetch_row();
-    $return    .= 
-"\n
--- ---------------------------------------------------------
---
--- Table structure for table : `{$table}`
---
--- ---------------------------------------------------------
+        $row2       = $row2->fetch_row();
+        $return    .= 
+        "\n
+        -- ---------------------------------------------------------
+        --
+        -- Table structure for table : `{$table}`
+        --
+        -- ---------------------------------------------------------
 
-".$row2[1].";\n";
+        ".$row2[1].";\n";
 
-    for ($i = 0; $i < $num_fields; $i++) 
-    {
+        for ($i = 0; $i < $num_fields; $i++) 
+        {
 
-      $n = 1 ;
-      while( $row = $result->fetch_row() )
-      { 
+                $n = 1 ;
+                while( $row = $result->fetch_row() )
+                { 
+                 
+
+                  if( $n++ == 1 ) { # set the first statements
+                              $return .= 
+                    "
+                    --
+                    -- Dumping data for table `{$table}`
+                    --
+
+                    ";  
+                  /**
+                   * Get structural of fields each tables
+                   */
+                  $array_field = array(); #reset ! important to resetting when loop 
+                   while( $field = $result->fetch_field() ) # get field
+                  { 
+                    $array_field[] = '`'.$field->name.'`';
+                    if ($field->flags & 1) { 
+                      $array_field_notnull[]=true; 
+                    }else{
+                      $array_field_notnull[]=false; 
+                    }
+                    
+                  }
+                  
+                  $array_f[$table] = $array_field;
+                  $array_f_nn[$table] = $array_field_notnull;
+                  // $array_f = $array_f;
+                  # endwhile
+                  $array_field = implode(', ', $array_f[$table]); #implode arrays
+
+                    $return .= "INSERT INTO `{$table}` ({$array_field}) VALUES\n(";
+                  } else {
+                    $return .= '(';
+                  }
+                  for($j=0; $j<$num_fields; $j++) 
+                  {
+                    
+                    $row[$j] = str_replace('\'','\'\'', preg_replace("/\n/","\\n", $row[$j] ) );
+                    if ( isset( $row[$j] ) ) { 
+                      if ($row[$j]==''){
+                          if ($array_f_nn[$table][$j]){
+                            $return.= '\'\''; 
+                          }else{
+                            $return.= 'null'; 
+                            
+                          }
+                      }else{
+                          if (is_numeric( $row[$j] )){
+                              $return .=$row[$j];
+                          }else{
+                              $return .='\''.$row[$j].'\'';
+                          }
+                         
+                      }
+                    } else { 
+                          if ($array_f_nn[$table][$j]){
+                            $return.= '\'\''; 
+                          }else{
+                            $return.= 'null'; 
+                            
+                          }
+                      
+                    }
+                    if ($j<($num_fields-1)) { $return.= ', '; }
+                  }
+                    $return.= "),\n";
+                }
+                # check matching
+                @preg_match("/\),\n/", $return, $match, false, -3); # check match
+                if( isset( $match[0] ) )
+                {
+                  $return = substr_replace( $return, ";\n", -2);
+                }
+
+        }
         
+          $return .= "\n";
 
-        if( $n++ == 1 ) { # set the first statements
-          $return .= 
-"
---
--- Dumping data for table `{$table}`
---
+  }/* fin foreach table*/
 
-";  
-        /**
-         * Get structural of fields each tables
-         */
-        $array_field = array(); #reset ! important to resetting when loop 
-         while( $field = $result->fetch_field() ) # get field
-        {
-          $array_field[] = '`'.$field->name.'`';
-          
-        }
-        $array_f[$table] = $array_field;
-        // $array_f = $array_f;
-        # endwhile
-        $array_field = implode(', ', $array_f[$table]); #implode arrays
-
-          $return .= "INSERT INTO `{$table}` ({$array_field}) VALUES\n(";
-        } else {
-          $return .= '(';
-        }
-        for($j=0; $j<$num_fields; $j++) 
-        {
-          
-          $row[$j] = str_replace('\'','\'\'', preg_replace("/\n/","\\n", $row[$j] ) );
-          if ( isset( $row[$j] ) ) { $return .= is_numeric( $row[$j] ) ? $row[$j] : '\''.$row[$j].'\'' ; } else { $return.= '\'\''; }
-          if ($j<($num_fields-1)) { $return.= ', '; }
-        }
-          $return.= "),\n";
-      }
-      # check matching
-      @preg_match("/\),\n/", $return, $match, false, -3); # check match
-      if( isset( $match[0] ) )
-      {
-        $return = substr_replace( $return, ";\n", -2);
-      }
-
-    }
-    
-      $return .= "\n";
-
-  }
 
 $return = 
 "-- ---------------------------------------------------------
