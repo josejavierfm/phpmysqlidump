@@ -1,6 +1,9 @@
 <?php
 /**
  * @author awan < nawa (at) yahoo (dot) com >
+ * @modify josejavierfm
+ * 2018
+ * v1.0.1 parametro que permite excluir la tabla log
  * 
  */
  
@@ -96,7 +99,7 @@ function mysqli_import_sql( $args , $dbhost, $dbuser, $dbpass ,$dbname ) {
  * @param string $dbname database name
  *
  */
-function backup_database( $directory, $outname , $dbhost, $dbuser, $dbpass ,$dbname ) {
+function backup_database( $directory, $outname , $dbhost, $dbuser, $dbpass ,$dbname,$conlog=false ) {
   
   // check mysqli extension installed
   if( ! function_exists('mysqli_connect') ) {
@@ -138,7 +141,12 @@ function backup_database( $directory, $outname , $dbhost, $dbuser, $dbpass ,$dbn
     $fullname = $dir.'/'.$name.'.sql.gz'; # full structures
 
     if( ! $mysqli->error ) {
-      $sql = "SHOW TABLES";
+      if ($conlog){
+
+        $sql = "SHOW TABLES";
+      }else{
+        $sql = "SHOW TABLES where tables_in_$dbname not like 'log'";
+      }
       $show = $mysqli->query($sql);
       while ( $r = $show->fetch_array() ) {
         $tables[] = $r[0];
