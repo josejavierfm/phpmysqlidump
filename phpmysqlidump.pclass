@@ -3,6 +3,7 @@
  * @author awan < nawa (at) yahoo (dot) com >
  * @modify josejavierfm
  * 2018
+ * v1.0.4 genera la sentencia drop table antes del create
  * v1.0.3 otro parametro para poner comillas aunque el campo sea numerico
  * v1.0.2 permite excluir tablas del volcado pasando el nombre en un array, ademas comprueba los flag de los campos para ver si poner null o '' en los campos vacios
  * v1.0.1 parametro que permite excluir la tabla log
@@ -187,7 +188,7 @@ function backup_database( $directory, $outname , $dbhost, $dbuser, $dbpass ,$dbn
         -- Table structure for table : `{$table}`
         --
         -- ---------------------------------------------------------
-
+		DROP TABLE IF EXISTS `".$table."`;\n
         ".$row2[1].";\n";
 
         for ($i = 0; $i < $num_fields; $i++) 
