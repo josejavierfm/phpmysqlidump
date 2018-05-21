@@ -11,8 +11,10 @@ require_once("phpmysqlidump.pclass");
 $filename = "backup-" . date("YmdHi") . "";
 $extension=".sql.gz";
 
-backup_database( "database", $filename, $DBHOST, $DBUSER, $DBPASSWD, $DATABASE,array("log"),true); // execute
+backup_database( "database", $filename, $DBHOST, $DBUSER, $DBPASSWD, $DATABASE,array("log"),true); 
+
 $salida=file_exists("database/".$filename.$extension);
+
 if ($salida){
     echo "Se ha generado el fichero";
 }else{
